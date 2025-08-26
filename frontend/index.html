@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Recap Generator</title>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+</head>
+<body>
+    <header>
+        <h1>🏈 Fantasy Football Recap Generator</h1>
+    </header>
+    <main>
+        <form id="recap-form">
+            <label for="year">Year:</label>
+            <input type="number" id="year" value="2024" required>
+            <label for="week">Week:</label>
+            <input type="number" id="week" value="4" required>
+            <button type="submit">Generate Recap</button>
+        </form>
+        <div id="results" style="display:none;">
+            <hr>
+            <h2>📝 Text Recap</h2>
+            <pre id="summary-text"></pre>
+            <h2>🎤 Audio Recap</h2>
+            <audio id="audio-player" controls></audio>
+        </div>
+        <div id="loading" style="display:none;">
+            <p>Generating recap, please wait...</p>
+        </div>
+        <div id="error" style="display:none; color: red;"></div>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
