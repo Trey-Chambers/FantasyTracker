@@ -1,26 +1,7 @@
 #!/usr/bin/env python3
 """
 Fantasy Football Weekly Recap Generator
-
-This script generates weekly recaps for ESPN fantasy football leagues and converts them to audio files.
-
-SETUP INSTRUCTIONS:
-1. Install required packages: pip install espn-api gtts python-dotenv
-2. Create a .env file in the same directory with the following variables:
-   LEAGUE_ID=your_league_id_number
-   ESPN_S2=your_espn_s2_cookie_value
-   SWID=your_swid_cookie_value
-
-To get your credentials:
-1. Go to ESPN Fantasy Football and log in
-2. Open browser developer tools (F12)
-3. Go to Application/Storage tab
-4. Look for cookies under espn.com
-5. Copy the values for 'ESPN_S2' and 'SWID'
-6. Your LEAGUE_ID is in the URL when viewing your league
-
-Author: Fantasy Football Recap Generator
-Version: 1.0
+... (rest of your docstring) ...
 """
 
 import os
@@ -30,6 +11,7 @@ from typing import List, Tuple, Optional
 from dotenv import load_dotenv
 from gtts import gTTS
 import logging
+import argparse # <-- IMPORT ARGPARSE
 
 # ESPN API import
 try:
@@ -46,13 +28,18 @@ logger = logging.getLogger(__name__)
 class FantasyRecapGenerator:
     """Main class for generating fantasy football weekly recaps."""
     
-    def __init__(self):
+    # 1. UPDATE THE __init__ METHOD
+    def __init__(self, year: Optional[int] = None, week: Optional[int] = None):
         """Initialize the generator with credentials and league connection."""
         self.league = None
         self.league_id = None
         self.espn_s2 = None
         self.swid = None
         self.current_week = None
+        
+        # Store the override arguments from the command line
+        self.override_year = year
+        self.override_week = week
         
         # Load environment variables
         self._load_credentials()
@@ -62,6 +49,7 @@ class FantasyRecapGenerator:
     
     def _load_credentials(self) -> None:
         """Load credentials from .env file."""
+        # ... (this method remains exactly the same) ...
         try:
             load_dotenv()
             
@@ -72,7 +60,6 @@ class FantasyRecapGenerator:
             if not all([self.league_id, self.espn_s2, self.swid]):
                 raise ValueError("Missing required environment variables")
                 
-            # Convert league_id to int
             try:
                 self.league_id = int(self.league_id)
             except ValueError:
@@ -86,19 +73,23 @@ class FantasyRecapGenerator:
             print("Please ensure your .env file contains LEAGUE_ID, ESPN_S2, and SWID variables.")
             sys.exit(1)
     
+    # 2. UPDATE THE _connect_to_league METHOD
     def _connect_to_league(self) -> None:
         """Establish connection to ESPN fantasy football league."""
         try:
             logger.info("Connecting to ESPN Fantasy Football API...")
             
+            # Use the override year if provided, otherwise default to the current year
+            target_year = self.override_year if self.override_year else datetime.now().year
+            logger.info(f"Connecting to league for the year: {target_year}")
+
             self.league = League(
                 league_id=self.league_id,
-                year=datetime.now().year,
+                year=target_year, # <-- USE THE TARGET_YEAR VARIABLE
                 espn_s2=self.espn_s2,
                 swid=self.swid
             )
             
-            # Test connection by getting basic league info
             league_name = self.league.settings.name
             logger.info(f"Successfully connected to league: {league_name}")
             
@@ -107,13 +98,19 @@ class FantasyRecapGenerator:
             print("Failed to connect to ESPN API. Please check your credentials and internet connection.")
             sys.exit(1)
     
+    # 3. UPDATE THE _get_target_week METHOD
     def _get_target_week(self) -> int:
-        """Determine the most recently completed week."""
+        """Determine the most recently completed week OR use the override."""
+        # If a week was passed in via command-line, use it immediately.
+        if self.override_week:
+            logger.info(f"MANUAL OVERRIDE: Using week {self.override_week} for recap generation.")
+            return self.override_week
+
+        # Otherwise, calculate the week like normal.
         try:
             current_week = self.league.current_week
             target_week = current_week - 1
             
-            # Edge case: If we're before week 1 or in preseason
             if target_week < 1:
                 raise ValueError("Season has not started yet")
             
@@ -124,7 +121,9 @@ class FantasyRecapGenerator:
             logger.error(f"Error determining target week: {e}")
             print("Error: Unable to determine the target week for recap generation.")
             sys.exit(1)
-    
+
+    # ... (all other methods like _get_week_scoreboard, _analyze_matchups, etc. remain the same) ...
+    # (I've removed them from this example for brevity)
     def _get_week_scoreboard(self, week: int) -> List:
         """Fetch the scoreboard for a specific week."""
         try:
@@ -335,15 +334,20 @@ class FantasyRecapGenerator:
             print(f"An unexpected error occurred: {e}")
             sys.exit(1)
 
-
 def main():
     """Main entry point for the script."""
+    # Add Argument Parsing
+    parser = argparse.ArgumentParser(description="Generate a weekly fantasy football recap.")
+    parser.add_argument("--year", type=int, help="The year to generate the recap for (e.g., 2024).")
+    parser.add_argument("--week", type=int, help="The week to generate the recap for.")
+    args = parser.parse_args()
+
     try:
         print("🎯 Fantasy Football Weekly Recap Generator")
         print("Loading credentials and connecting to ESPN...")
         
-        # Create generator instance
-        generator = FantasyRecapGenerator()
+        # Pass the arguments to the generator
+        generator = FantasyRecapGenerator(year=args.year, week=args.week)
         
         # Generate recap
         generator.generate_weekly_recap()
@@ -357,4 +361,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
