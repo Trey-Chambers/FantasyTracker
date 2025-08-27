@@ -75,7 +75,18 @@ class FantasyRecapGenerator:
             
             # Initialize ElevenLabs client - use the correct import
             from elevenlabs.text_to_speech.client import TextToSpeechClient
-            self.elevenlabs_client = TextToSpeechClient(api_key=self.elevenlabs_api_key)
+            from elevenlabs.core.client_wrapper import SyncClientWrapper
+            import httpx
+            
+            # Create the client wrapper with API key
+            client_wrapper = SyncClientWrapper(
+                api_key=self.elevenlabs_api_key,
+                base_url="https://api.elevenlabs.io",
+                httpx_client=httpx.Client()
+            )
+            
+            # Create the TextToSpeechClient with the wrapper
+            self.elevenlabs_client = TextToSpeechClient(client_wrapper=client_wrapper)
                 
             logger.info("Credentials loaded successfully")
             
@@ -340,13 +351,16 @@ Generate the recap now:"""
             # Create filename
             filename = f"recap_week_{week}.mp3"
             
-            # Use ElevenLabs to generate audio (using "Adam" voice)
+            # Use ElevenLabs to generate audio (using your custom voice)
             # Use the convert method with proper parameters
-            audio_data = self.elevenlabs_client.convert(
+            audio_stream = self.elevenlabs_client.convert(
                 text=text,
-                voice_id="Adam",  # Note: voice_id not voice
+                voice_id="MGlI86ObjkLeoIPwTM12",  # Your custom voice ID
                 model_id="eleven_monolingual_v1"
             )
+            
+            # The convert method returns a generator, so we need to consume it
+            audio_data = b''.join(audio_stream)
             
             # Save the audio data to file
             with open(filename, "wb") as f:
