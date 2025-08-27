@@ -6,10 +6,11 @@ Fantasy Football Weekly Recap Generator
 
 import os
 import sys
+import json
 from datetime import datetime
 from typing import List, Tuple, Optional
 from dotenv import load_dotenv
-from gtts import gTTS
+import google.generativeai as genai
 import logging
 import argparse # <-- IMPORT ARGPARSE
 
@@ -29,13 +30,14 @@ class FantasyRecapGenerator:
     """Main class for generating fantasy football weekly recaps."""
     
     # 1. UPDATE THE __init__ METHOD
-    def __init__(self, year: Optional[int] = None, week: Optional[int] = None):
+    def __init__(self, year: Optional[int] = None, week: Optional[int] = None, personality: str = "SVP"):
         """Initialize the generator with credentials and league connection."""
         self.league = None
         self.league_id = None
         self.espn_s2 = None
         self.swid = None
         self.current_week = None
+        self.personality = personality
         
         # Store the override arguments from the command line
         self.override_year = year
@@ -56,21 +58,31 @@ class FantasyRecapGenerator:
             self.league_id = os.getenv('LEAGUE_ID')
             self.espn_s2 = os.getenv('ESPN_S2')
             self.swid = os.getenv('SWID')
+            self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+            self.elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
             
-            if not all([self.league_id, self.espn_s2, self.swid]):
+            if not all([self.league_id, self.espn_s2, self.swid, self.gemini_api_key, self.elevenlabs_api_key]):
                 raise ValueError("Missing required environment variables")
                 
             try:
                 self.league_id = int(self.league_id)
             except ValueError:
                 raise ValueError("LEAGUE_ID must be a valid integer")
+            
+            # Configure Gemini client
+            genai.configure(api_key=self.gemini_api_key)
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Initialize ElevenLabs client - use the correct import
+            from elevenlabs.text_to_speech.client import TextToSpeechClient
+            self.elevenlabs_client = TextToSpeechClient(api_key=self.elevenlabs_api_key)
                 
             logger.info("Credentials loaded successfully")
             
         except Exception as e:
             logger.error(f"Failed to load credentials: {e}")
             print("Error: Failed to load credentials from .env file.")
-            print("Please ensure your .env file contains LEAGUE_ID, ESPN_S2, and SWID variables.")
+            print("Please ensure your .env file contains LEAGUE_ID, ESPN_S2, SWID, GEMINI_API_KEY, and ELEVENLABS_API_KEY variables.")
             raise e
     
     # 2. UPDATE THE _connect_to_league METHOD
@@ -187,6 +199,50 @@ class FantasyRecapGenerator:
         
         return full_summary, awards
     
+    def _generate_recap_with_llm(self, weekly_data: dict) -> str:
+        """Generate recap text using Gemini AI with the selected personality."""
+        try:
+            logger.info(f"Generating recap with {self.personality} personality using Gemini AI...")
+            
+            # Create the meta-prompt with persona instructions
+            persona_instructions = {
+                "SVP": "You are Scott Van Pelt from SportsCenter. Use your signature style: be witty, clever, and slightly sarcastic. Reference pop culture, use wordplay, and maintain a conversational tone. Keep it engaging and entertaining.",
+                "Chris Berman": "You are Chris Berman from ESPN. Use your signature style: be enthusiastic, use nicknames for players/teams, reference classic rock songs, and maintain high energy throughout. Use phrases like 'WHOOP!' and 'Back, back, back!'",
+                "Stuart Scott": "You are Stuart Scott from SportsCenter. Use your signature style: be cool, use urban slang, reference hip-hop culture, and maintain a smooth, confident delivery. Use phrases like 'Boo-yah!' and 'As cool as the other side of the pillow.'"
+            }
+            
+            persona_style = persona_instructions.get(self.personality, persona_instructions["SVP"])
+            
+            prompt = f"""You are a fantasy football analyst with the personality of {self.personality}.
+
+{persona_style}
+
+Generate a weekly fantasy football recap based on the following data. Make it engaging, entertaining, and true to the personality style requested.
+
+Weekly Data:
+{json.dumps(weekly_data, indent=2)}
+
+Requirements:
+1. Start with a title: "📊 WEEKLY RECAP FOR WEEK [WEEK] 📊"
+2. Include all matchup results in an engaging narrative style
+3. End with a "🏆 WEEKLY AWARDS 🏆" section
+4. Keep the tone consistent with the requested personality
+5. Make it fun and entertaining to read
+6. Use emojis and formatting to enhance readability
+
+Generate the recap now:"""
+
+            # Call Gemini API
+            response = self.gemini_model.generate_content(prompt)
+            generated_text = response.text
+            
+            logger.info("Successfully generated recap with Gemini AI")
+            return generated_text
+            
+        except Exception as e:
+            logger.error(f"Failed to generate recap with LLM: {e}")
+            raise e
+    
     def _generate_matchup_narrative(self, home_team, away_team, home_score: float, away_score: float) -> str:
         """Generate narrative for a single matchup."""
         home_name = home_team.team_name
@@ -276,25 +332,31 @@ class FantasyRecapGenerator:
         
         return "\n".join(awards_text)
     
-    def _convert_to_audio(self, text: str, week: int) -> str:
-        """Convert text summary to MP3 audio file."""
+    def _convert_to_audio_elevenlabs(self, text: str, week: int) -> str:
+        """Convert text summary to MP3 audio file using ElevenLabs."""
         try:
-            logger.info("Converting text to speech...")
+            logger.info("Converting text to speech using ElevenLabs...")
             
             # Create filename
             filename = f"recap_week_{week}.mp3"
             
-            # Convert text to speech
-            tts = gTTS(text=text, lang='en', slow=False)
+            # Use ElevenLabs to generate audio (using "Adam" voice)
+            # Use the convert method with proper parameters
+            audio_data = self.elevenlabs_client.convert(
+                text=text,
+                voice_id="Adam",  # Note: voice_id not voice
+                model_id="eleven_monolingual_v1"
+            )
             
-            # Save audio file
-            tts.save(filename)
+            # Save the audio data to file
+            with open(filename, "wb") as f:
+                f.write(audio_data)
             
             logger.info(f"Audio file saved successfully: {filename}")
             return filename
             
         except Exception as e:
-            logger.error(f"Failed to convert text to audio: {e}")
+            logger.error(f"Failed to convert text to audio with ElevenLabs: {e}")
             print(f"Error: Failed to generate audio file: {e}")
             raise e
     
@@ -309,28 +371,36 @@ class FantasyRecapGenerator:
             # Get scoreboard data
             scoreboard = self._get_week_scoreboard(target_week)
             
-            # Generate narrative summary
-            summary, awards = self._analyze_matchups(scoreboard)
+            # Generate raw data structure for LLM
+            raw_data = self._analyze_matchups(scoreboard)
+            summary, awards = raw_data
             
-            # Add title
-            full_summary = f"📊 WEEKLY RECAP FOR WEEK {target_week} 📊\n\n{summary}"
+            # Create structured data for LLM
+            weekly_data = {
+                "week": target_week,
+                "summary": summary,
+                "awards": awards
+            }
+            
+            # Generate enhanced recap with LLM
+            enhanced_summary = self._generate_recap_with_llm(weekly_data)
             
             # Print summary to console
             print("\n" + "="*60)
             print("FANTASY FOOTBALL WEEKLY RECAP")
             print("="*60)
-            print(full_summary)
+            print(enhanced_summary)
             print("="*60)
             
-            # Convert to audio
-            audio_filename = self._convert_to_audio(full_summary, target_week)
+            # Convert to audio using ElevenLabs
+            audio_filename = self._convert_to_audio_elevenlabs(enhanced_summary, target_week)
             
             # Success message
             print(f"\n✅ Successfully generated audio recap: {audio_filename}")
             print(f"📁 File saved in: {os.getcwd()}")
 
             # Return the results so the API can use them
-            return full_summary, audio_filename
+            return enhanced_summary, audio_filename
             
         except Exception as e:
             logger.error(f"Unexpected error during recap generation: {e}")
@@ -344,14 +414,17 @@ def main():
     parser = argparse.ArgumentParser(description="Generate a weekly fantasy football recap.")
     parser.add_argument("--year", type=int, help="The year to generate the recap for (e.g., 2024).")
     parser.add_argument("--week", type=int, help="The week to generate the recap for.")
+    parser.add_argument("--personality", type=str, default="SVP", choices=["SVP", "Chris Berman", "Stuart Scott"], 
+                       help="The personality style for the recap (default: SVP)")
     args = parser.parse_args()
 
     try:
         print("🎯 Fantasy Football Weekly Recap Generator")
+        print(f"Personality: {args.personality}")
         print("Loading credentials and connecting to ESPN...")
         
         # Pass the arguments to the generator
-        generator = FantasyRecapGenerator(year=args.year, week=args.week)
+        generator = FantasyRecapGenerator(year=args.year, week=args.week, personality=args.personality)
         
         # Generate recap
         generator.generate_weekly_recap()

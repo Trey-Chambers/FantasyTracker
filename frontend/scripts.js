@@ -11,19 +11,21 @@ document.getElementById('recap-form').addEventListener('submit', async function(
     errorDiv.style.display = 'none';
 
     try {
-        // Get the year and week from the input fields
+        // Get the year, week, and personality from the input fields
         const year = document.getElementById('year').value;
         const week = document.getElementById('week').value;
+        const personality = document.getElementById('personality').value;
 
         const response = await fetch('/api/generate-recap', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            // Send the year and week to the backend
+            // Send the year, week, and personality to the backend
             body: JSON.stringify({
                 year: parseInt(year),
-                week: parseInt(week)
+                week: parseInt(week),
+                personality: personality
             }),
         });
 

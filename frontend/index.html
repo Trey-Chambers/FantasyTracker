@@ -14,9 +14,18 @@
         <form id="recap-form">
             <label for="year">Year:</label>
             <input type="number" id="year" value="2024" required>
+            <br><br>
             <label for="week">Week:</label>
             <input type="number" id="week" value="4" required>
-            <button type="submit">Generate Recap</button>
+            <br><br>
+            <label for="personality">Choose a Recap Style:</label>
+            <select id="personality" name="personality">
+                <option value="SVP" selected>SVP</option>
+                <option value="Chris Berman">Chris Berman</option>
+                <option value="Stuart Scott">Stuart Scott</option>
+            </select>
+            <br><br>
+            <button type="submit">Generate Weekly Recap</button>
         </form>
         <div id="results" style="display:none;">
             <hr>

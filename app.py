@@ -65,16 +65,17 @@ def get_league_info():
 def generate_recap():
     """Generate a weekly recap."""
     try:
-        # Get year and week from the frontend's request
+        # Get year, week, and personality from the frontend's request
         data = request.get_json()
         year = data.get('year')
         week = data.get('week')
+        personality = data.get('personality', 'SVP')  # Default to SVP if not provided
 
         if not year or not week:
             return jsonify({'error': 'Year and week are required'}), 400
 
-        # Create a new generator instance FOR THIS REQUEST with the specific year and week
-        generator = FantasyRecapGenerator(year=year, week=week)
+        # Create a new generator instance FOR THIS REQUEST with the specific year, week, and personality
+        generator = FantasyRecapGenerator(year=year, week=week, personality=personality)
         
         # Generate the recap
         summary, audio_filename = generator.generate_weekly_recap()

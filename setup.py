@@ -45,6 +45,10 @@ ESPN_S2=your_espn_s2_cookie_value_here
 
 # SWID Cookie Value (found in browser developer tools under espn.com cookies)
 SWID=your_swid_cookie_value_here
+
+# AI and Voice Generation API Keys
+GEMINI_API_KEY=your_gemini_api_key_here
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
 """
     
     try:
