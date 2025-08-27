@@ -18,7 +18,7 @@ from recap_generator import FantasyRecapGenerator
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend')
 CORS(app)  # Enable CORS for frontend communication
 
 # Global instance of the recap generator
@@ -28,6 +28,11 @@ recap_generator = None
 def index():
     """Serve the main HTML page."""
     return send_file('frontend/index.html')
+
+@app.route('/scripts.js')
+def serve_scripts():
+    """Serve the JavaScript file."""
+    return send_file('frontend/scripts.js')
 
 @app.route('/api/health')
 def health_check():

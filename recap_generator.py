@@ -120,7 +120,7 @@ class FantasyRecapGenerator:
         except Exception as e:
             logger.error(f"Error determining target week: {e}")
             print("Error: Unable to determine the target week for recap generation.")
-            sys.exit(1)
+            raise e
 
     # ... (all other methods like _get_week_scoreboard, _analyze_matchups, etc. remain the same) ...
     # (I've removed them from this example for brevity)
@@ -141,7 +141,7 @@ class FantasyRecapGenerator:
         except Exception as e:
             logger.error(f"Failed to fetch scoreboard for week {week}: {e}")
             print(f"Failed to fetch data for week {week}. The week may not be complete yet.")
-            sys.exit(1)
+            raise e
     
     def _analyze_matchups(self, scoreboard: List) -> Tuple[str, dict]:
         """Analyze matchups and generate narrative summary with awards tracking."""
