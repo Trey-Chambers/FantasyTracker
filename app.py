@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='frontend')
 CORS(app)  # Enable CORS for frontend communication
 
-# Global instance of the recap generator
-recap_generator = None
+# No global recap generator needed - we'll create instances per request
 
 @app.route('/')
 def index():
@@ -47,13 +46,10 @@ def health_check():
 def get_league_info():
     """Get basic league information."""
     try:
-        global recap_generator
-        
-        if recap_generator is None:
-            return jsonify({'error': 'Recap generator not initialized'}), 500
-        
-        league_name = recap_generator.league.settings.name
-        current_week = recap_generator.league.current_week
+        # Create a temporary generator to get league info
+        generator = FantasyRecapGenerator()
+        league_name = generator.league.settings.name
+        current_week = generator.league.current_week
         
         return jsonify({
             'league_name': league_name,
@@ -69,22 +65,24 @@ def get_league_info():
 def generate_recap():
     """Generate a weekly recap."""
     try:
-        global recap_generator
-        
-        if recap_generator is None:
-            return jsonify({'error': 'Recap generator not initialized'}), 500
+        # Get year and week from the frontend's request
+        data = request.get_json()
+        year = data.get('year')
+        week = data.get('week')
+
+        if not year or not week:
+            return jsonify({'error': 'Year and week are required'}), 400
+
+        # Create a new generator instance FOR THIS REQUEST with the specific year and week
+        generator = FantasyRecapGenerator(year=year, week=week)
         
         # Generate the recap
-        summary, audio_filename = recap_generator.generate_weekly_recap()
-        
-        # Get the full path to the audio file
-        audio_path = os.path.join(os.getcwd(), audio_filename)
+        summary, audio_filename = generator.generate_weekly_recap()
         
         return jsonify({
             'success': True,
             'summary': summary,
             'audio_filename': audio_filename,
-            'audio_path': audio_path,
             'message': 'Recap generated successfully'
         })
         
@@ -152,24 +150,7 @@ def internal_error(error):
     """Handle 500 errors."""
     return jsonify({'error': 'Internal server error'}), 500
 
-def initialize_recap_generator():
-    """Initialize the recap generator on startup."""
-    global recap_generator
-    try:
-        logger.info("Initializing Fantasy Recap Generator...")
-        recap_generator = FantasyRecapGenerator()
-        logger.info("Recap generator initialized successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to initialize recap generator: {e}")
-        return False
-
 if __name__ == '__main__':
-    # Initialize the recap generator
-    if not initialize_recap_generator():
-        logger.error("Failed to initialize recap generator. Exiting.")
-        exit(1)
-    
     logger.info("Starting Flask server...")
     logger.info("Open your browser to: http://localhost:5000")
     

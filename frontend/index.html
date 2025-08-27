@@ -12,8 +12,11 @@
     </header>
     <main>
         <form id="recap-form">
-            <p>Generate a recap for the most recently completed week:</p>
-            <button type="submit">Generate Weekly Recap</button>
+            <label for="year">Year:</label>
+            <input type="number" id="year" value="2024" required>
+            <label for="week">Week:</label>
+            <input type="number" id="week" value="4" required>
+            <button type="submit">Generate Recap</button>
         </form>
         <div id="results" style="display:none;">
             <hr>

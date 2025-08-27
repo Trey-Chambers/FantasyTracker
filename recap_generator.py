@@ -71,7 +71,7 @@ class FantasyRecapGenerator:
             logger.error(f"Failed to load credentials: {e}")
             print("Error: Failed to load credentials from .env file.")
             print("Please ensure your .env file contains LEAGUE_ID, ESPN_S2, and SWID variables.")
-            sys.exit(1)
+            raise e
     
     # 2. UPDATE THE _connect_to_league METHOD
     def _connect_to_league(self) -> None:
@@ -96,7 +96,7 @@ class FantasyRecapGenerator:
         except Exception as e:
             logger.error(f"Failed to connect to ESPN API: {e}")
             print("Failed to connect to ESPN API. Please check your credentials and internet connection.")
-            sys.exit(1)
+            raise e
     
     # 3. UPDATE THE _get_target_week METHOD
     def _get_target_week(self) -> int:
@@ -296,7 +296,7 @@ class FantasyRecapGenerator:
         except Exception as e:
             logger.error(f"Failed to convert text to audio: {e}")
             print(f"Error: Failed to generate audio file: {e}")
-            sys.exit(1)
+            raise e
     
     def generate_weekly_recap(self) -> None:
         """Main method to generate the weekly recap."""
