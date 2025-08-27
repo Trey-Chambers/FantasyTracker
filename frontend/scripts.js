@@ -1,8 +1,6 @@
 document.getElementById('recap-form').addEventListener('submit', async function(event) {
     event.preventDefault();
 
-    const year = document.getElementById('year').value;
-    const week = document.getElementById('week').value;
     const resultsDiv = document.getElementById('results');
     const loadingDiv = document.getElementById('loading');
     const errorDiv = document.getElementById('error');
@@ -13,15 +11,12 @@ document.getElementById('recap-form').addEventListener('submit', async function(
     errorDiv.style.display = 'none';
 
     try {
-        const response = await fetch('/api/generate_recap', {
+        const response = await fetch('/api/generate-recap', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                year: parseInt(year),
-                week: parseInt(week)
-            }),
+            body: JSON.stringify({}), // No parameters needed - uses most recent week
         });
 
         if (!response.ok) {
@@ -31,12 +26,16 @@ document.getElementById('recap-form').addEventListener('submit', async function(
 
         const data = await response.json();
 
-        // Populate the results
-        document.getElementById('summary-text').textContent = data.summary;
-        document.getElementById('audio-player').src = data.audioUrl;
-        
-        // Show the results
-        resultsDiv.style.display = 'block';
+        if (data.success) {
+            // Populate the results
+            document.getElementById('summary-text').textContent = data.summary;
+            document.getElementById('audio-player').src = `/api/audio/${data.audio_filename}`;
+            
+            // Show the results
+            resultsDiv.style.display = 'block';
+        } else {
+            throw new Error(data.message || 'Failed to generate recap');
+        }
 
     } catch (error) {
         errorDiv.textContent = `Error: ${error.message}`;
@@ -45,3 +44,20 @@ document.getElementById('recap-form').addEventListener('submit', async function(
         loadingDiv.style.display = 'none';
     }
 });
+
+// Add a function to get league info on page load
+async function loadLeagueInfo() {
+    try {
+        const response = await fetch('/api/league-info');
+        if (response.ok) {
+            const data = await response.json();
+            // You could display league info here if desired
+            console.log('League info loaded:', data);
+        }
+    } catch (error) {
+        console.log('Could not load league info:', error);
+    }
+}
+
+// Load league info when page loads
+document.addEventListener('DOMContentLoaded', loadLeagueInfo);

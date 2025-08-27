@@ -328,11 +328,15 @@ class FantasyRecapGenerator:
             # Success message
             print(f"\n✅ Successfully generated audio recap: {audio_filename}")
             print(f"📁 File saved in: {os.getcwd()}")
+
+            # Return the results so the API can use them
+            return full_summary, audio_filename
             
         except Exception as e:
             logger.error(f"Unexpected error during recap generation: {e}")
             print(f"An unexpected error occurred: {e}")
-            sys.exit(1)
+            # Instead of exiting, raise the exception so the API can catch it
+            raise e
 
 def main():
     """Main entry point for the script."""
